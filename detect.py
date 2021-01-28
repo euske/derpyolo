@@ -55,7 +55,7 @@ def detect(model, image, max_objs=2):
     found = []
     for (i,row) in enumerate(outputs[0]):
         for (j,cell) in enumerate(row):
-            objs = [ GridCell.fromvec((j,i), v) for v in cell ]
+            objs = [ GridCell.from_tensor((j,i), v) for v in cell ]
             for obj in objs:
                 (cat,prob) = obj.get_cat()
                 if cat == 0: continue

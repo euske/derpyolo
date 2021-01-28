@@ -43,7 +43,7 @@ def train(loader, model, optimizer, max_objs=2):
                     if 0 < w and 0 < h:
                         (x0,y0,w0,h0) = cell
                         (x1,y1,w1,h1) = bbox
-                        objs.append(GridCell.frombox(
+                        objs.append(GridCell.from_annot(
                             p,
                             (w*h)/(w0*h0),        # objectness
                             (x1+w1/2-(x0+w0/2))/width,  # x
@@ -73,11 +73,11 @@ def train(loader, model, optimizer, max_objs=2):
                 p = (i%7, i//7)
                 if obj0 is None:
                     for vec1 in objs1:
-                        obj1 = GridCell.fromvec(p, vec1)
+                        obj1 = GridCell.from_tensor(p, vec1)
                         loss += obj1.get_cost_noobj()
                 else:
                     (idx,_) = argmax(objs1, key=lambda obj:obj[0])
-                    obj1 = GridCell.fromvec(p, objs1[idx])
+                    obj1 = GridCell.from_tensor(p, objs1[idx])
                     loss += obj0.get_cost_full(obj1)
         n += len(inputs)
         logging.info(f'Batch {batch}: n={n}, loss={loss/len(inputs):.4f}')

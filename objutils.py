@@ -127,11 +127,11 @@ class GridCell:
                 f' bbox=({self.x:.2f},{self.y:.2f},{self.w:.2f},{self.h:.2f})>')
 
     @classmethod
-    def frombox(klass, p, conf, x, y, w, h, cat):
+    def from_annot(klass, p, conf, x, y, w, h, cat):
         return klass(p, conf, sigmoid(x), sigmoid(y), w, h, cat=cat)
 
     @classmethod
-    def fromvec(klass, p, v):
+    def from_tensor(klass, p, v):
         return klass(p, v[0], v[1], v[2], v[3], v[4], cprobs=v[5:])
 
     def get_bbox(self):
