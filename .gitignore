@@ -1,0 +1,9 @@
+*~
+.*
+*.pt
+*.gz
+*.png
+*.log
+tmp
+COCO
+__pycache__
