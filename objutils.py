@@ -2,6 +2,10 @@
 ##
 ##  objutils.py - Utilities
 ##
+##  usage: (view annotations)
+##    $ ./objutils.py -n10 ./COCO/train.zip ./COCO/instances.json
+##
+import sys
 import json
 import zipfile
 import os.path
@@ -218,3 +222,48 @@ def rect_map(frame, size, rect):
     return (x0+x*w0//ww, y0+y*h0//hh, w*w0//ww, h*h0//hh)
 assert rect_map((0,0,10,10), (100,100), (10,10,20,20)) == (1,1,2,2)
 assert rect_map((-5,-5,10,10), (100,100), (50,0,50,100)) == (0,-5,5,10)
+
+
+# main
+def main(argv):
+    import getopt
+    from PIL import ImageDraw
+    def usage():
+        print(f'usage: {argv[0]} [-O output] [-n images] images.zip annots.json')
+        return 100
+    try:
+        (opts, args) = getopt.getopt(argv[1:], 'O:n:')
+    except getopt.GetoptError:
+        return usage()
+    output_dir = '.'
+    num_images = 0
+    for (k, v) in opts:
+        if k == '-O': output_dir = v
+        elif k == '-n': num_images = int(v)
+
+    image_path = './COCO/val2017.zip'
+    annot_path = './COCO/annotations/instances_val2017.json'
+    if args:
+        image_path = args.pop(0)
+    if args:
+        annot_path = args.pop(0)
+
+    dataset = COCODataset(image_path, annot_path)
+    dataset.open()
+    print(f'Images: {len(dataset)}')
+
+    for (i,(image,annot)) in enumerate(dataset):
+        output = os.path.join(output_dir, f'output_{i:06d}.png')
+        print(f'Image {i}: size={image.size}, annot={len(annot)}, output={output}')
+        draw = ImageDraw.Draw(image)
+        for (cat,(x,y,w,h)) in annot:
+            (name,color) = CATEGORIES[cat]
+            draw.rectangle((x,y,x+w,y+h), outline=color)
+            draw.text((x,y), name, fill=color)
+        image.save(output)
+        if i+1 == num_images: break
+
+    return
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
