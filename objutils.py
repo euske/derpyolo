@@ -42,6 +42,7 @@ class COCODataset(Dataset):
         self.logger.info(f'COCODataset: images={len(images)}')
         catname2idx = { k:idx for (idx,(k,_)) in CATEGORIES.items() }
         annots = {}
+        catcount = {}
         self.logger.info(f'COCODataset: annot_path={self.annot_path}')
         with open(self.annot_path) as fp:
             objs = json.load(fp)
@@ -54,13 +55,20 @@ class COCODataset(Dataset):
             for obj in objs['annotations']:
                 cat_id = obj['category_id']
                 if cat_id not in catid2idx: continue
+                cat_idx = catid2idx[cat_id]
+                (cat_name,_) = CATEGORIES[cat_idx]
+                if cat_name not in catcount:
+                    catcount[cat_name] = 0
+                catcount[cat_name] += 1
                 image_id = obj['image_id']
                 bbox = obj['bbox']
                 if image_id in annots:
                     a = annots[image_id]
                 else:
                     a = annots[image_id] = []
-                a.append((catid2idx[cat_id], bbox))
+                a.append((cat_idx, bbox))
+        cats = sorted(catcount.items(), key=lambda x:x[1])
+        self.logger.info(f'COCODataset: cats={cats}')
         self.logger.info(f'COCODataset: annots={sum(map(len, annots.values()))}')
         self.data = [ (images[i], annots.get(i)) for i in sorted(images.keys()) ]
         return
@@ -232,14 +240,18 @@ def main(argv):
         print(f'usage: {argv[0]} [-O output] [-n images] images.zip annots.json')
         return 100
     try:
-        (opts, args) = getopt.getopt(argv[1:], 'O:n:')
+        (opts, args) = getopt.getopt(argv[1:], 'dO:n:')
     except getopt.GetoptError:
         return usage()
-    output_dir = '.'
+    level = logging.INFO
+    output_dir = None
     num_images = 0
     for (k, v) in opts:
-        if k == '-O': output_dir = v
+        if k == '-d': level = logging.DEBUG
+        elif k == '-O': output_dir = v
         elif k == '-n': num_images = int(v)
+
+    logging.basicConfig(level=level)
 
     image_path = './COCO/val2017.zip'
     annot_path = './COCO/annotations/instances_val2017.json'
@@ -250,18 +262,18 @@ def main(argv):
 
     dataset = COCODataset(image_path, annot_path)
     dataset.open()
-    print(f'Images: {len(dataset)}')
 
-    for (i,(image,annot)) in enumerate(dataset):
-        output = os.path.join(output_dir, f'output_{i:06d}.png')
-        print(f'Image {i}: size={image.size}, annot={len(annot)}, output={output}')
-        draw = ImageDraw.Draw(image)
-        for (cat,(x,y,w,h)) in annot:
-            (name,color) = CATEGORIES[cat]
-            draw.rectangle((x,y,x+w,y+h), outline=color)
-            draw.text((x,y), name, fill=color)
-        image.save(output)
-        if i+1 == num_images: break
+    if output_dir is not None:
+        for (i,(image,annot)) in enumerate(dataset):
+            output = os.path.join(output_dir, f'output_{i:06d}.png')
+            print(f'Image {i}: size={image.size}, annot={len(annot)}, output={output}')
+            draw = ImageDraw.Draw(image)
+            for (cat,(x,y,w,h)) in annot:
+                (name,color) = CATEGORIES[cat]
+                draw.rectangle((x,y,x+w,y+h), outline=color)
+                draw.text((x,y), name, fill=color)
+            image.save(output)
+            if i+1 == num_images: break
 
     return
 
