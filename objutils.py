@@ -67,9 +67,8 @@ class COCODataset(Dataset):
                 else:
                     a = annots[image_id] = []
                 a.append((cat_idx, bbox))
-        cats = sorted(catcount.items(), key=lambda x:x[1])
-        self.logger.info(f'COCODataset: cats={cats}')
-        self.logger.info(f'COCODataset: annots={sum(map(len, annots.values()))}')
+        cats = ', '.join( f'{k}:{v}' for (k,v) in catcount.items() )
+        self.logger.info(f'COCODataset: annots={sum(catcount.values())} ({cats})')
         self.data = [ (images[i], annots.get(i)) for i in sorted(images.keys()) ]
         return
 
