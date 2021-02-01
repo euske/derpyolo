@@ -18,8 +18,9 @@ My own implementation of YOLO (mixture of v1 and v2).
     - `./COCO/annotations/instances_train2017.json`
 
  2. Do this:
+    (this can take days.)
 ```
-$ python train.py -n10 -o./yolo_net.pt ./COCO/train2017.zip ./COCO/annotations/instances_train2017.json
+$ python train.py -n20 -o./yolo_net.pt ./COCO/train2017.zip ./COCO/annotations/instances_train2017.json
 ```
 
 
