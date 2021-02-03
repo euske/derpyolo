@@ -130,9 +130,8 @@ def main(argv):
         random.seed(random_seed)
         torch.manual_seed(random_seed)
 
-    if model_path is None:
-        model = YOLONet(device, max_objs*(5+len(CATEGORIES)))
-    else:
+    model = None
+    if model_path is not None:
         logging.info(f'Loading: {model_path}...')
         try:
             params = torch.load(model_path, map_location=device)
@@ -141,6 +140,8 @@ def main(argv):
             model.load_state_dict(params['model'])
         except FileNotFoundError as e:
             logging.error(f'Error: {e}')
+    if model is None:
+        model = YOLONet(device, max_objs*(5+len(CATEGORIES)))
     model.train()
 
     dataset = COCODataset(image_path, annot_path)
@@ -148,6 +149,8 @@ def main(argv):
     loader = DataLoader(
         dataset, batch_size=batch_size, shuffle=shuffle,
         collate_fn=lambda x:x)
+    catratio = dataset.get_catratio()
+    GridCell.L_CPROBS = { i:pow(1.0/r, 0.25) for (i,r) in catratio.items() }
 
     optimizer = optim.Adam(model.parameters(), lr=rate)
     for epoch in range(num_epochs):

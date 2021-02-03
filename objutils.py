@@ -56,10 +56,9 @@ class COCODataset(Dataset):
                 cat_id = obj['category_id']
                 if cat_id not in catid2idx: continue
                 cat_idx = catid2idx[cat_id]
-                (cat_name,_) = CATEGORIES[cat_idx]
-                if cat_name not in catcount:
-                    catcount[cat_name] = 0
-                catcount[cat_name] += 1
+                if cat_idx not in catcount:
+                    catcount[cat_idx] = 0
+                catcount[cat_idx] += 1
                 image_id = obj['image_id']
                 bbox = obj['bbox']
                 if image_id in annots:
@@ -67,9 +66,11 @@ class COCODataset(Dataset):
                 else:
                     a = annots[image_id] = []
                 a.append((cat_idx, bbox))
-        cats = ', '.join( f'{k}:{v}' for (k,v) in catcount.items() )
-        self.logger.info(f'COCODataset: annots={sum(catcount.values())} ({cats})')
+        total = sum(catcount.values())
+        cats = ', '.join( f'{CATEGORIES[idx][0]}:{n}' for (idx,n) in catcount.items() )
+        self.logger.info(f'COCODataset: annots={total} ({cats})')
         self.data = [ (images[i], annots.get(i)) for i in sorted(images.keys()) ]
+        self.catratio = { idx:n/total for (idx,n) in catcount.items() }
         return
 
     def __len__(self):
@@ -81,6 +82,9 @@ class COCODataset(Dataset):
             image = Image.open(fp)
             image.load()
         return (image, annot or [])
+
+    def get_catratio(self):
+        return self.catratio
 
 
 ##  GridCell
@@ -112,6 +116,7 @@ class GridCell:
 
     L_NOOBJ = 0.5
     L_COORD = 5.0
+    L_CPROBS = None
 
     def __init__(self, p, conf, x, y, w, h, cat=0, cprobs=None):
         assert 0 <= conf <= 1, conf
@@ -157,13 +162,14 @@ class GridCell:
 
     def get_cost_full(self, obj):
         assert self.cat != 0
+        ratio = self.L_CPROBS[self.cat]
         return (self.L_COORD *
                 ((self.x - obj.x)**2 +
                  (self.y - obj.y)**2 +
                  (self.w - obj.w)**2 +
                  (self.h - obj.h)**2) +
                 (self.conf - obj.conf)**2 +
-                mse(self.cat, obj.cprobs))
+                ratio * mse(self.cat, obj.cprobs))
 
 
 ##  Utils.
