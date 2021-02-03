@@ -25,7 +25,6 @@ def main(argv):
     except getopt.GetoptError:
         return usage()
     level = logging.INFO
-    max_objs = 2
     device_type = 'cuda'
     threshold = 0.25
     iou = 0.50
@@ -51,14 +50,15 @@ def main(argv):
     device = torch.device(device_type)
     logging.info(f'Device: {device}')
 
-    model = YOLONet(device, max_objs*(5+len(CATEGORIES)))
-
     logging.info(f'Loading: {model_path}...')
     try:
-        model.load_state_dict(torch.load(model_path, map_location=device))
+        params = torch.load(model_path, map_location=device)
     except FileNotFoundError as e:
         logging.error(f'Error: {e}')
-
+        raise
+    max_objs = params['max_objs']
+    model = YOLONet(device, max_objs*(5+len(CATEGORIES)))
+    model.load_state_dict(params['model'])
     model.eval()
 
     dataset = COCODataset(image_path, annot_path)

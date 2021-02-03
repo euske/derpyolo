@@ -130,12 +130,15 @@ def main(argv):
         random.seed(random_seed)
         torch.manual_seed(random_seed)
 
-    model = YOLONet(device, max_objs*(5+len(CATEGORIES)))
-
-    if model_path is not None:
+    if model_path is None:
+        model = YOLONet(device, max_objs*(5+len(CATEGORIES)))
+    else:
         logging.info(f'Loading: {model_path}...')
         try:
-            model.load_state_dict(torch.load(model_path, map_location=device))
+            params = torch.load(model_path, map_location=device)
+            max_objs = params['max_objs']
+            model = YOLONet(device, max_objs*(5+len(CATEGORIES)))
+            model.load_state_dict(params['model'])
         except FileNotFoundError as e:
             logging.error(f'Error: {e}')
     model.train()
@@ -152,7 +155,11 @@ def main(argv):
         train(loader, model, optimizer, max_objs=max_objs)
         if model_path is not None:
             logging.info(f'Saving: {model_path}...')
-            torch.save(model.state_dict(), model_path)
+            params = {
+                'max_objs': max_objs,
+                'model': model.state_dict(),
+            }
+            torch.save(params, model_path)
 
     return
 
