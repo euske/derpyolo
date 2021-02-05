@@ -3,8 +3,8 @@
 ##  detect.py - Mini YOLO detection.
 ##
 ##  usage:
-##    (files)    $ ./detect.py -C -O. yolo_net.pt image.jpg
-##    (realtime) $ ./detect.py -C -V yolo_net.pt
+##    (files)    $ ./detect.py -O. -i yolo_net.pt image.jpg
+##    (realtime) $ ./detect.py -i -V yolo_net.pt
 ##
 import sys
 import torch

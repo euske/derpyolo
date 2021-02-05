@@ -3,7 +3,7 @@
 ##  validate.py - Mini YOLO validator.
 ##
 ##  usage:
-##    $ ./validate.py -C ./yolo_net.pt ./COCO/train.zip ./COCO/instances.json
+##    $ ./validate.py -i ./yolo_net.pt ./COCO/train.zip ./COCO/instances.json
 ##
 import sys
 import torch
