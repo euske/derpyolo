@@ -18,26 +18,25 @@ from objutils import COCODataset, rect_fit, rect_map, adjust_image
 def main(argv):
     import getopt
     def usage():
-        print(f'usage: {argv[0]} [-d] [-C] [-t threshold] model.pt images.zip annots.json')
+        print(f'usage: {argv[0]} [-d] [-C] [-t threshold] [-i model.pt] images.zip annots.json')
         return 100
     try:
-        (opts, args) = getopt.getopt(argv[1:], 'dCt:')
+        (opts, args) = getopt.getopt(argv[1:], 'dCt:i:')
     except getopt.GetoptError:
         return usage()
     level = logging.INFO
     device_type = 'cuda'
-    threshold = 0.25
+    threshold = 0.20
+    model_path = './yolo_net.pt'
     iou = 0.50
     for (k, v) in opts:
         if k == '-d': level = logging.DEBUG
         elif k == '-C': device_type = 'cpu'
         elif k == '-t': threshold = float(v)
+        elif k == '-i': model_path = v
 
-    model_path = './yolo_net.pt'
     image_path = './COCO/val2017.zip'
     annot_path = './COCO/annotations/instances_val2017.json'
-    if args:
-        model_path = args.pop(0)
     if args:
         image_path = args.pop(0)
     if args:

@@ -151,8 +151,8 @@ class GridCell:
 
     def get_cat(self):
         if self.cat != 0: return (self.cat, 1.0)
-        (i,p) = argmax(self.cprobs)
-        return (i, p.item())
+        (values, indices) = self.cprobs.topk(1)
+        return (indices[0].item(), values[0].item())
 
     def get_cost_noobj(self):
         assert self.cprobs is not None

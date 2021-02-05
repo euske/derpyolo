@@ -97,26 +97,25 @@ def renderobjs(image, objs):
 def main(argv):
     import getopt
     def usage():
-        print(f'usage: {argv[0]} [-d] [-C] [-V] [-O output] [-t threshold] model.pt image.jpg ...')
+        print(f'usage: {argv[0]} [-d] [-C] [-V] [-O output] [-t threshold] [-i model.pt] image.jpg ...')
         return 100
     try:
-        (opts, args) = getopt.getopt(argv[1:], 'dCVO:t:')
+        (opts, args) = getopt.getopt(argv[1:], 'dCVO:t:i:')
     except getopt.GetoptError:
         return usage()
     level = logging.INFO
     device_type = 'cuda'
     video_capture = False
     output_dir = None
-    threshold = 0.25
+    threshold = 0.20
+    model_path = 'yolo_net.pt'
     for (k, v) in opts:
         if k == '-d': level = logging.DEBUG
         elif k == '-C': device_type = 'cpu'
         elif k == '-V': video_capture = True
         elif k == '-O': output_dir = v
         elif k == '-t': threshold = float(v)
-
-    if not args: return usage()
-    model_path = args.pop(0)
+        elif k == '-i': model_path = v
 
     logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=level)
 

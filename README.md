@@ -2,6 +2,10 @@
 
 My own implementation of YOLO (mixture of v1 and v2).
 
+Original papers:
+ - YOLO: https://arxiv.org/abs/1506.02640
+ - YOLOv3: https://arxiv.org/abs/1804.02767
+
 
 ## Prerequisites:
 
@@ -28,8 +32,8 @@ $ python train.py -n20 -o./yolo_net.pt ./COCO/train2017.zip ./COCO/annotations/i
 
 ### Annotate image:
 
-    $ ./detect.py -O. yolo_net.pt image.jpg
+    $ ./detect.py -O. -i yolo_net.pt image.jpg
 
 ### Real-time detection with camera:
 
-    $ ./detect.py -V yolo_net.pt
+    $ ./detect.py -V -i yolo_net.pt
