@@ -120,5 +120,8 @@ class YOLONet(nn.Module):
         return x.cpu()
 
 if __name__ == '__main__':
-    net = YOLONet(0, 1)
-    print(list(net.parameters()))
+    import torchsummary
+    from categories import CATEGORIES
+    max_objs = 2
+    net = YOLONet(0, max_objs*(5+len(CATEGORIES)))
+    torchsummary.summary(net, (3,)+YOLONet.IMAGE_SIZE)
