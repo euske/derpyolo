@@ -12,7 +12,11 @@ Original papers:
  - Python3 (https://www.python.org/)
  - PyTorch (https://pytorch.org/)
  - COCO dataset (https://cocodataset.org/)
- - (optinal) CUDA
+ - Pillow (https://python-pillow.org/)
+ - OpenCV-Python (https://pypi.org/project/opencv-python/)
+ - (optinal)
+   - CUDA (https://developer.nvidia.com/cuda-downloads)
+   - CuDNN (https://developer.nvidia.com/cudnn)
 
 
 ## Train
@@ -24,7 +28,7 @@ Original papers:
  2. Do this:
     (this can take days.)
 ```
-$ python train.py -n20 -o./yolo_net.pt ./COCO/train2017.zip ./COCO/annotations/instances_train2017.json
+$ python train.py -n30 -o./yolo_net.pt ./COCO/train2017.zip ./COCO/annotations/instances_train2017.json
 ```
 
 
