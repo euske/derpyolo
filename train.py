@@ -150,7 +150,7 @@ def main(argv):
         dataset, batch_size=batch_size, shuffle=shuffle,
         collate_fn=lambda x:x)
     catratio = dataset.get_catratio()
-    GridCell.L_CPROBS = { i:pow(1.0/r, 0.25) for (i,r) in catratio.items() }
+    GridCell.L_CPROBS = { i:pow(1.0/r, 0.5) for (i,r) in catratio.items() }
 
     optimizer = optim.Adam(model.parameters(), lr=rate)
     for epoch in range(num_epochs):
