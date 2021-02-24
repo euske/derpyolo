@@ -2,6 +2,9 @@
 
 A derpy Python implementation of YOLO (mixture of v1 and v2).
 
+Purely for educational purposes. Useless for production.
+(COCO mAP: 0.09)
+
 Original papers:
  - YOLO: https://arxiv.org/abs/1506.02640
  - YOLOv3: https://arxiv.org/abs/1804.02767
