@@ -39,8 +39,8 @@ $ python train.py -n30 -o./yolo_net.pt ./COCO/train2017.zip ./COCO/annotations/i
 
 ### Annotate image:
 
-    $ ./detect.py -O. -i yolo_net.pt image.jpg
+    $ python detect.py -O. -i./yolo_net.pt image.jpg
 
 ### Real-time detection with camera:
 
-    $ ./detect.py -V -i yolo_net.pt
+    $ python detect.py -V -i./yolo_net.pt
