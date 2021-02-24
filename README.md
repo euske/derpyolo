@@ -1,6 +1,6 @@
-# Mini YOLO
+# DerPyOLO
 
-My own implementation of YOLO (mixture of v1 and v2).
+A derpy Python implementation of YOLO (mixture of v1 and v2).
 
 Original papers:
  - YOLO: https://arxiv.org/abs/1506.02640
