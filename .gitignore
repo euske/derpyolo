@@ -4,6 +4,7 @@
 *.gz
 *.png
 *.log
+*.pem
 tmp
 COCO
 __pycache__

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DerpYOLO Demo</title>
+<style>
+.buttons { margin: 1em; padding: 1em; outline: 2px solid black; }
+.videos { margin: 1em; padding: 1em; outline: 2px solid black; }
+</style>
+<script>
+const URL = '/detect';
+const DELAY = 100;
+var videoStream = null;
+var imageCapture = null;
+var timeout = null;
+
+function grabFrame() {
+  if (imageCapture === null) return;
+  imageCapture.grabFrame()
+    .then(image => {
+      const canvas = document.querySelector('#canvas');
+      const context = canvas.getContext('2d');
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, image.width, image.height,
+                        0, 0, canvas.width, canvas.height);
+      data = canvas.toDataURL('image/jpeg');
+      console.info('grabFrame send:', data.length);
+      function onLoad() {
+        let result = JSON.parse(this.responseText);
+        console.log('grabFrame recv:', result);
+        for (const obj of result) {
+          [x,y,w,h] = obj.bbox;
+          context.lineWidth = 2;
+          context.font = 'bold 16px serif';
+          context.strokeStyle = obj.color;
+          context.strokeRect(x, y, w, h);
+          context.fillStyle = obj.color;
+          context.fillText(obj.name, x, y-16);
+        }
+        timeout = setTimeout(grabFrame, DELAY);
+      }
+      let req = new XMLHttpRequest();
+      req.addEventListener('load', onLoad);
+      req.open('POST', URL, true);
+      req.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+      req.send('data='+encodeURIComponent(data));
+    })
+    .catch(error => { console.error('grabFrame: ', error) });
+}
+
+function startCapture() {
+  if (videoStream !== null) return;
+  navigator.mediaDevices.getUserMedia({video:true})
+    .then(mediaStream => {
+      document.querySelector('#video').srcObject = mediaStream;
+      videoStream = mediaStream.getVideoTracks()[0];
+      imageCapture = new ImageCapture(videoStream);
+      console.info('startCapture: success');
+      timeout = setTimeout(grabFrame, DELAY);
+    })
+    .catch(error => { console.error('startCapture: ', error) });
+}
+
+function stopCapture() {
+  if (videoStream === null) return;
+  console.info('stopCapture');
+  clearTimeout(timeout);
+  videoStream.stop();
+  videoStream = null;
+}
+</script>
+</head>
+<body>
+
+<h1>DerpYOLO Demo</h1>
+
+<div class=buttons>
+<button onclick="startCapture();">Start</button>
+&nbsp;
+<button onclick="stopCapture();">Stop</button>
+</div>
+
+<div class=videos>
+<video id="video" width="320" height="240" autoplay></video>
+&nbsp;
+<canvas id="canvas" width="320" height="240"></canvas>
+</div>
