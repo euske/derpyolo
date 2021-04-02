@@ -231,7 +231,6 @@ def rect_map(frame, size, rect):
     (x0,y0,w0,h0) = frame
     (ww,hh) = size
     (x,y,w,h) = rect
-    (x1,y1) = (x+w, y+h)
     return (x0+x*w0//ww, y0+y*h0//hh, w*w0//ww, h*h0//hh)
 assert rect_map((0,0,10,10), (100,100), (10,10,20,20)) == (1,1,2,2)
 assert rect_map((-5,-5,10,10), (100,100), (50,0,50,100)) == (0,-5,5,10)

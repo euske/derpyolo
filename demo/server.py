@@ -20,22 +20,8 @@ sys.path.append('..')
 import torch
 from model import YOLONet
 from categories import CATEGORIES
-from detect import detect, softnms
-from objutils import rect_fit, adjust_image
-
-# init YOLO
-def init_model(model_path, device_type='cuda'):
-    print(f'Loading model: {model_path}...')
-    torch.set_grad_enabled(False)
-    device = torch.device(device_type)
-    params = torch.load(model_path, map_location=device)
-    max_objs = params['max_objs']
-    model = YOLONet(device, max_objs*(5+len(CATEGORIES)))
-    model.load_state_dict(params['model'])
-    model.eval()
-    return model
-
-model = init_model('../yolo_net.pt')
+from detect import init_model, detect, softnms
+from objutils import rect_fit, rect_map, adjust_image
 
 # quote HTML metacharacters.
 def q(s):
@@ -378,8 +364,8 @@ def main(app, argv):
         (opts, args) = getopt.getopt(argv[1:], 'ds:')
     except getopt.GetoptError:
         return usage()
-    host = None
-    port = None
+    host = ''
+    port = 4343
     debug = 0
     for (k, v) in opts:
         if k == '-d': debug += 1
@@ -404,6 +390,12 @@ def main(app, argv):
 ##
 class SampleApp(WebApp):
 
+    def __init__(self):
+        WebApp.__init__(self)
+        (self.model, self.max_objs) = init_model('../yolo_net.pt')
+        self.threshold = 0.20
+        return
+
     @GET('/')
     def index(self):
         yield Response()
@@ -420,17 +412,18 @@ class SampleApp(WebApp):
             (_,_,data) = data.partition(',')
             data = base64.urlsafe_b64decode(data)
             image = Image.open(BytesIO(data))
-            (width, height) = YOLONet.IMAGE_SIZE
-            (window, (dx,dy,fw,fh)) = rect_fit((width, height), image.size)
-            tmpimage = adjust_image(image, window, (width, height))
-            found = detect(model, tmpimage)
-            found = softnms(found, 0.20)
-            def conv(obj):
-                (x,y,w,h) = obj.bbox
-                bbox = (dx+x*fw/width, dy+y*fh/height, w*fw/width, h*fh/height)
-                return {'name':obj.name, 'color':obj.color, 'bbox':bbox }
-            result = [ conv(obj) for obj in found ]
+            (window, frame) = rect_fit(YOLONet.IMAGE_SIZE, image.size)
+            tmpimage = adjust_image(image, window, YOLONet.IMAGE_SIZE)
+            found = detect(self.model, tmpimage, max_objs=self.max_objs)
+            found = softnms(found, self.threshold)
             print(image, found)
+            result = [
+                {
+                    'name':obj.name,
+                    'color':obj.color,
+                    'bbox':rect_map(frame, YOLONet.IMAGE_SIZE, obj.bbox)
+                } for obj in found
+            ]
         yield Template(json.dumps(result))
         return
 

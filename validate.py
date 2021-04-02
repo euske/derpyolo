@@ -11,7 +11,7 @@ import logging
 from torch.utils.data import DataLoader
 from categories import CATEGORIES
 from model import YOLONet
-from detect import detect, softnms
+from detect import init_model, detect, softnms
 from objutils import COCODataset, rect_fit, rect_map, adjust_image
 
 # main
@@ -44,21 +44,11 @@ def main(argv):
 
     logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s', level=level)
 
-    torch.set_grad_enabled(False)
-
-    device = torch.device(device_type)
-    logging.info(f'Device: {device}')
-
-    logging.info(f'Loading: {model_path}...')
     try:
-        params = torch.load(model_path, map_location=device)
+        (model, max_objs) = init_model(model_path, device_type)
     except FileNotFoundError as e:
         logging.error(f'Error: {e}')
         raise
-    max_objs = params['max_objs']
-    model = YOLONet(device, max_objs*(5+len(CATEGORIES)))
-    model.load_state_dict(params['model'])
-    model.eval()
 
     dataset = COCODataset(image_path, annot_path)
     dataset.open()
