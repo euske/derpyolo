@@ -44,3 +44,9 @@ $ python train.py -n30 -o./yolo_net.pt ./COCO/train2017.zip ./COCO/annotations/i
 ### Real-time detection with camera:
 
     $ python detect.py -V -i./yolo_net.pt
+
+### Webcam demo:
+
+    $ cd demo/
+    $ python server.py
+    (connect to :4343 via Chrome or Edge)
