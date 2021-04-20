@@ -34,7 +34,7 @@ class YOLOObject:
         return
 
     def __repr__(self):
-        return (f'<YOLOObject({self.name}): conf={self.conf:.3f}, bbox={self.bbox}>')
+        return (f'<YOLOObject({self.cat}:{self.name}): conf={self.conf:.3f}, bbox={self.bbox}>')
 
     def get_iou(self, bbox):
         (_,_,w,h) = rect_intersect(self.bbox, bbox)
