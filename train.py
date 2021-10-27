@@ -21,46 +21,17 @@ from objutils import rect_fit, rect_map, rect_intersect, rect_split, argmax
 # train
 def train(loader, model, optimizer, max_objs=2):
     n = 0
-    (width, height) = YOLONet.IMAGE_SIZE
-    dst_frame = (0,0,width,height)
     for (batch, sample) in enumerate(loader):
-        optimizer.zero_grad()
         inputs = []
-        answers = []
+        targets = []
         for (image, annot) in sample:
             if image.mode != 'RGB': continue
-            src_size = image.size
-            (dst_window,_) = rect_fit(YOLONet.IMAGE_SIZE, src_size)
-            image = adjust_image(image, dst_window, YOLONet.IMAGE_SIZE)
+            (image, cells) = get_cells(image, annot, YOLONet.IMAGE_SIZE, (7,7))
             inputs.append(image2numpy(image))
-            cells = []
-            for (p, cell) in rect_split(dst_frame, (7,7)):
-                objs = []
-                for (cat, bbox) in annot:
-                    assert 0 < cat
-                    bbox = rect_map(dst_window, src_size, bbox)
-                    (_,_,w,h) = rect_intersect(cell, bbox)
-                    if 0 < w and 0 < h:
-                        (x0,y0,w0,h0) = cell
-                        (x1,y1,w1,h1) = bbox
-                        objs.append(GridCell.from_annot(
-                            p,
-                            (w*h)/(w0*h0),        # objectness
-                            (x1+w1/2-(x0+w0/2))/width,  # x
-                            (y1+h1/2-(y0+h0/2))/height, # y
-                            w1/width,                   # w
-                            h1/height,                  # h
-                            cat,
-                        ))
-                if not objs:
-                    cells.append(None)
-                else:
-                    (i,_) = argmax(objs, key=lambda obj:obj.conf)
-                    cells.append(objs[i])
-            assert len(cells) == 7*7
-            answers.append(cells)
-        assert len(inputs) == len(answers)
-        # answers: [bs, 7*7, max_objs, 5+ncats]
+            targets.append(cells)
+        assert len(inputs) == len(targets)
+        optimizer.zero_grad()
+        # targets: [bs, 7*7, max_objs, 5+ncats]
         inputs = torch.from_numpy(numpy.array(inputs))
         # inputs: [bs, 3, 224, 224]
         outputs = model(inputs)
@@ -68,21 +39,21 @@ def train(loader, model, optimizer, max_objs=2):
         outputs = outputs.view(-1, 7*7, max_objs, 5+len(CATEGORIES))
         # outputs: [bs, 7*7, max_objs, 5+ncats]
         loss = torch.tensor(0.)
-        for (cells0,cells1) in zip(answers, outputs):
+        for (cells0,cells1) in zip(targets, outputs):
             for (i,(obj0,objs1)) in enumerate(zip(cells0, cells1)):
-                p = (i%7, i//7)
+                pos = (i%7, i//7)
                 if obj0 is None:
                     for vec1 in objs1:
-                        obj1 = GridCell.from_tensor(p, vec1)
+                        obj1 = GridCell.from_tensor(pos, vec1)
                         loss += obj1.get_cost_noobj()
                 else:
                     (idx,_) = argmax(objs1, key=lambda obj:obj[0])
-                    obj1 = GridCell.from_tensor(p, objs1[idx])
+                    obj1 = GridCell.from_tensor(pos, objs1[idx])
                     loss += obj0.get_cost_full(obj1)
-        n += len(inputs)
-        logging.info(f'Batch {batch}: n={n}, loss={loss/len(inputs):.4f}')
         loss.backward()
         optimizer.step()
+        n += len(inputs)
+        logging.info(f'Batch {batch}: n={n}, loss={loss.item()/len(inputs):.4f}')
     return
 
 # main

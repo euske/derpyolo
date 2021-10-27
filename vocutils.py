@@ -1,26 +1,53 @@
 #!/usr/bin/env python
 ##
-##  objutils.py - Utilities
+##  vocutils.py - PASCAL VOX Utilities
 ##
 ##  usage: (view annotations)
-##    $ ./objutils.py -n10 ./COCO/train.zip ./COCO/instances.json
+##    $ ./vocutils.py -n10 VOC2007.zip
 ##
 import sys
-import os
 import os.path
-import json
 import zipfile
 import math
 import numpy
 import logging
-from xml.etree.ElementTree import XML
 import torch
 from torch.utils.data import Dataset
 from torch.nn.functional import mse_loss
 from PIL import Image
-from categories import CATEGORIES
+from xml.etree.ElementTree import XML
 
-CATNAME2IDX = { k:idx for (idx,(k,_)) in CATEGORIES.items() }
+
+CATEGORIES = [
+    (None, 0),                  # 0
+    ('aeroplane', 331),         # 1
+    ('bicycle', 418),           # 2
+    ('bird', 599),              # 3
+    ('boat', 398),              # 4
+    ('bottle', 634),            # 5
+    ('bus', 272),               # 6
+    ('car', 1644),              # 7
+    ('cat', 389),               # 8
+    ('chair', 1432),            # 9
+    ('cow', 356),               # 10
+    ('diningtable', 310),       # 11
+    ('dog', 538),               # 12
+    ('horse', 406),             # 13
+    ('motorbike', 390),         # 14
+    ('person', 5447),           # 15
+    ('pottedplant', 625),       # 16
+    ('sheep', 353),             # 17
+    ('sofa', 425),              # 18
+    ('train', 328),             # 19
+    ('tvmonitor', 367)          # 20
+]
+
+COLORS = (
+    'red', 'green', 'blue', 'magenta', 'cyan', 'yellow',
+    'black', 'white', 'gray', 'orange', 'brown', 'pink',
+    )
+
+CAT2INDEX = { k:idx for (idx,(k,_)) in enumerate(CATEGORIES) }
 
 
 ##  PASCALDataset
@@ -82,13 +109,11 @@ class PASCALDataset(Dataset):
                 filename = obj.text
                 assert filename == k+'.jpg'
             elif obj.tag == 'object':
-                cat = None
+                name = None
                 x0 = x1 = y0 = y1 = None
                 for e in obj:
                     if e.tag == 'name':
                         name = e.text
-                        assert name in CATNAME2IDX, name
-                        cat = CATNAME2IDX[name]
                     elif e.tag == 'bndbox':
                         for c in e:
                             if c.tag == 'xmin':
@@ -99,77 +124,10 @@ class PASCALDataset(Dataset):
                                 y0 = int(c.text)
                             elif c.tag == 'ymax':
                                 y1 = int(c.text)
-                if (cat is not None and x0 is not None and x1 is not None and
+                if (name is not None and x0 is not None and x1 is not None and
                     y0 is not None and y1 is not None):
-                    annot.append((cat, (x0,y0,x1,y1)))
+                    annot.append((name, (x0,y0,x1-x0,y1-y0)))
         return (image, annot)
-
-
-##  COCODataset
-##
-class COCODataset(Dataset):
-
-    def __init__(self, image_path, annot_path):
-        Dataset.__init__(self)
-        self.image_path = image_path
-        self.annot_path = annot_path
-        self.logger = logging.getLogger()
-        return
-
-    def open(self):
-        self.logger.info(f'COCODataset: image_path={self.image_path}')
-        self.image_zip = zipfile.ZipFile(self.image_path)
-        images = {}
-        for name in self.image_zip.namelist():
-            if name.endswith('/'): continue
-            (image_id,ext) = os.path.splitext(os.path.basename(name))
-            if ext != '.jpg': continue
-            images[int(image_id)] = name
-        self.logger.info(f'COCODataset: images={len(images)}')
-        annots = {}
-        catcount = {}
-        self.logger.info(f'COCODataset: annot_path={self.annot_path}')
-        with open(self.annot_path) as fp:
-            objs = json.load(fp)
-            catid2idx = {}
-            for obj in objs['categories']:
-                cat_id = obj['id']
-                cat_name = obj['name']
-                assert cat_name in CATNAME2IDX, cat_name
-                catid2idx[cat_id] = CATNAME2IDX[cat_name]
-            for obj in objs['annotations']:
-                cat_id = obj['category_id']
-                if cat_id not in catid2idx: continue
-                cat_idx = catid2idx[cat_id]
-                if cat_idx not in catcount:
-                    catcount[cat_idx] = 0
-                catcount[cat_idx] += 1
-                image_id = obj['image_id']
-                bbox = obj['bbox']
-                if image_id in annots:
-                    a = annots[image_id]
-                else:
-                    a = annots[image_id] = []
-                a.append((cat_idx, bbox))
-        total = sum(catcount.values())
-        cats = ', '.join( f'{CATEGORIES[idx][0]}:{n}' for (idx,n) in catcount.items() )
-        self.logger.info(f'COCODataset: annots={total} ({cats})')
-        self.data = [ (images[i], annots.get(i)) for i in sorted(images.keys()) ]
-        self.catratio = { idx:n/total for (idx,n) in catcount.items() }
-        return
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, index):
-        (name, annot) = self.data[index]
-        with self.image_zip.open(name) as fp:
-            image = Image.open(fp)
-            image.load()
-        return (image, annot or [])
-
-    def get_catratio(self):
-        return self.catratio
 
 
 ##  GridCell
@@ -178,8 +136,8 @@ class COCODataset(Dataset):
 def sigmoid(x):
     return 1.0 / (1.0 + math.exp(-x))
 
-# diomgis: inverse sigmoid()
-def diomgis(y):
+# inv_sigmoid: inverse sigmoid()
+def inv_sigmoid(y):
     if 0 < y and y < 1:
         return -math.log(1.0/y - 1.0)
     raise ValueError(y)
@@ -201,14 +159,13 @@ class GridCell:
 
     L_NOOBJ = 0.5
     L_COORD = 5.0
-    L_CPROBS = None
 
-    def __init__(self, p, conf, x, y, w, h, cat=0, cprobs=None):
+    def __init__(self, pos, conf, x, y, w, h, cat=0, cprobs=None):
         assert 0 <= conf <= 1, conf
         assert 0 <= x <= 1 and 0 <= y <= 1, (x,y)
         assert 0 <= w <= 1 and 0 <= h <= 1, (w,h)
         assert cat != 0 or cprobs is not None
-        self.p = p
+        self.pos = pos
         self.conf = conf
         self.x = x
         self.y = y
@@ -220,24 +177,24 @@ class GridCell:
 
     def __repr__(self):
         (cat,prob) = self.get_cat()
-        return (f'<GridCell{self.p}: conf={self.conf:.3f}, cat={cat}({prob:.2f}),'
+        return (f'<GridCell{self.pos}: conf={self.conf:.3f}, cat={cat}({prob:.2f}),'
                 f' bbox=({self.x:.2f},{self.y:.2f},{self.w:.2f},{self.h:.2f})>')
 
     @classmethod
-    def from_annot(klass, p, conf, x, y, w, h, cat):
-        return klass(p, conf, sigmoid(x), sigmoid(y), w, h, cat=cat)
+    def from_annot(klass, pos, conf, x, y, w, h, cat):
+        return klass(pos, conf, sigmoid(x), sigmoid(y), w, h, cat=cat)
 
     @classmethod
-    def from_tensor(klass, p, v):
-        return klass(p, v[0], v[1], v[2], v[3], v[4], cprobs=v[5:])
+    def from_tensor(klass, pos, v):
+        return klass(pos, v[0], v[1], v[2], v[3], v[4], cprobs=v[5:])
 
     def get_bbox(self):
-        return (diomgis(self.x), diomgis(self.y), self.w, self.h)
+        return (inv_sigmoid(self.x), inv_sigmoid(self.y), self.w, self.h)
 
     def get_cat(self):
         if self.cat != 0: return (self.cat, 1.0)
-        (values, indices) = self.cprobs.topk(1)
-        return (indices[0].item(), values[0].item())
+        (cat,prob) = argmax(self.cprobs)
+        return (cat, prob)
 
     def get_cost_noobj(self):
         assert self.cprobs is not None
@@ -247,14 +204,13 @@ class GridCell:
 
     def get_cost_full(self, obj):
         assert self.cat != 0
-        ratio = self.L_CPROBS[self.cat]
         return (self.L_COORD *
                 ((self.x - obj.x)**2 +
                  (self.y - obj.y)**2 +
                  (self.w - obj.w)**2 +
                  (self.h - obj.h)**2) +
                 (self.conf - obj.conf)**2 +
-                ratio * mse(self.cat, obj.cprobs))
+                mse(self.cat, obj.cprobs))
 
 
 ##  Utils.
@@ -320,13 +276,47 @@ def rect_map(frame, size, rect):
 assert rect_map((0,0,10,10), (100,100), (10,10,20,20)) == (1,1,2,2)
 assert rect_map((-5,-5,10,10), (100,100), (50,0,50,100)) == (0,-5,5,10)
 
+# get_cells:
+def get_cells(image, annot, input_size, output_size):
+    (width, height) = input_size
+    (rows, cols) = output_size
+    src_size = image.size
+    (dst_window,_) = rect_fit(input_size, src_size)
+    cells = []
+    for (pos, (x0,y0,w0,h0)) in rect_split((0,0,width,height), output_size):
+        objs = []
+        for (cat, (x1,y1,w1,h1)) in annot:
+            assert 0 < cat
+            (x1,y1,w1,h1) = rect_map(dst_window, src_size, (x1,y1,w1,h1))
+            (_,_,iw,ih) = rect_intersect((x0,y0,w0,h0), (x1,y1,w1,h1))
+            if 0 < iw and 0 < ih:
+                (cx0,cy0) = (x0+w0/2,y0+h0/2)
+                (cx1,cy1) = (x1+w1/2,y1+h1/2)
+                objs.append(GridCell.from_annot(
+                    pos,              # grid position
+                    (iw*ih)/(w0*h0),  # objectness
+                    (cx1-cx0)/width,  # delta x
+                    (cy1-cy0)/height, # delta y
+                    w1/width,         # w
+                    h1/height,        # h
+                    cat,
+                ))
+        if not objs:
+            cells.append(None)
+        else:
+            (i,_) = argmax(objs, key=lambda obj:obj.conf)
+            cells.append(objs[i])
+    assert len(cells) == rows*cols
+    image = adjust_image(image, dst_window, (width,height))
+    return (image, cells)
+
 
 # main
 def main(argv):
     import getopt
     from PIL import ImageDraw
     def usage():
-        print(f'usage: {argv[0]} [-O output] [-n images] images.zip annots.json')
+        print(f'usage: {argv[0]} [-O output] [-n images] voc.zip')
         return 100
     try:
         (opts, args) = getopt.getopt(argv[1:], 'dO:n:')
@@ -344,18 +334,15 @@ def main(argv):
 
     path = './PASCAL/VOC2007.zip'
     dataset = PASCALDataset(path)
-    for (image,annot) in dataset:
-        print(image, annot)
-        for (cat,(x,y,w,h)) in annot:
-            (name,color) = CATEGORIES[cat]
 
     if output_dir is not None:
         for (i,(image,annot)) in enumerate(dataset):
             output = os.path.join(output_dir, f'output_{i:06d}.png')
             print(f'Image {i}: size={image.size}, annot={len(annot)}, output={output}')
             draw = ImageDraw.Draw(image)
-            for (cat,(x,y,w,h)) in annot:
-                (name,color) = CATEGORIES[cat]
+            for (name,(x,y,w,h)) in annot:
+                cat = CAT2INDEX[name]
+                color = COLORS[cat % len(COLORS)]
                 draw.rectangle((x,y,x+w,y+h), outline=color)
                 draw.text((x,y), name, fill=color)
             image.save(output)
