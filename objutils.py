@@ -6,17 +6,94 @@
 ##    $ ./objutils.py -n10 ./COCO/train.zip ./COCO/instances.json
 ##
 import sys
+import os
+import os.path
 import json
 import zipfile
-import os.path
 import math
 import numpy
 import logging
+from xml.etree.ElementTree import XML
 import torch
 from torch.utils.data import Dataset
 from torch.nn.functional import mse_loss
 from PIL import Image
 from categories import CATEGORIES
+
+
+##  PASCALDataset
+##
+class PASCALDataset(Dataset):
+
+    def __init__(self, image_path, annot_path):
+        Dataset.__init__(self)
+        self.image_path = image_path
+        self.annot_path = annot_path
+        self.logger = logging.getLogger()
+        return
+
+    def open(self):
+        self.logger.info(f'PASCALDataset: image_path={self.image_path}')
+        self.image_zip = zipfile.ZipFile(self.image_path)
+        images = []
+        for name in os.listdir(self.image_path):
+            if name.startswith('.'): continue
+            if not name.endswith('.jpg'): continue
+            images.append(name)
+        self.logger.info(f'PASCALDataset: images={len(images)}')
+        catname2idx = { k:idx for (idx,(k,_)) in CATEGORIES.items() }
+        annots = {}
+        catcount = {}
+        self.logger.info(f'PASCALDataset: annot_path={self.annot_path}')
+        for name in os.listdir(self.annot_path):
+            with open(name) as fp:
+                elem = XML(fp.read())
+            if elem.tag != 'annotation': continue
+            filename = None
+            objs = []
+            for obj in elem:
+                if obj.tag == 'filename':
+                    filename = e.text
+                elif obj.tag == 'object':
+                    cat = None
+                    x0 = x1 = y0 = y1 = None
+                    for e in obj:
+                        if e.tag == 'name':
+                            cat = e.tag
+                        elif e.tag == 'bndbox':
+                            for c in e:
+                                if c.tag == 'xmin':
+                                    x0 = int(c.text)
+                                elif c.tag == 'xmax':
+                                    x1 = int(c.text)
+                                elif c.tag == 'ymin':
+                                    y0 = int(c.text)
+                                elif c.tag == 'ymax':
+                                    y1 = int(c.text)
+                    if (cat is not None and x0 is not None and x1 is not None and
+                        y0 is not None and y1 is not None):
+                        objs.append((cat, (x0,y0,x1,y1)))
+            if filename in images:
+                annots[filename] = objs
+        total = sum(catcount.values())
+        cats = ', '.join( f'{CATEGORIES[idx][0]}:{n}' for (idx,n) in catcount.items() )
+        self.logger.info(f'PASCALDataset: annots={total} ({cats})')
+        self.data = [ (images[i], annots.get(i)) for i in sorted(images.keys()) ]
+        self.catratio = { idx:n/total for (idx,n) in catcount.items() }
+        return
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        (name, annot) = self.data[index]
+        with self.image_zip.open(name) as fp:
+            image = Image.open(fp)
+            image.load()
+        return (image, annot or [])
+
+    def get_catratio(self):
+        return self.catratio
 
 
 ##  COCODataset

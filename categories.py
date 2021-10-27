@@ -53,11 +53,11 @@ if __name__ == '__main__': sys.exit(main(sys.argv))
 # Categories
 CATEGORIES = {
    0: (None, None),
-   1: ('person', 'red'),
+   1: ('person', 'red'),        # 'foot','hand','head' (PASCAL)
    2: ('bicycle', 'green'),
    3: ('car', 'yellow'),
-   4: ('motorcycle', 'cyan'),
-   5: ('airplane', 'magenta'),
+   4: ('motorcycle', 'cyan'),   # 'motorbike' (PASCAL)
+   5: ('airplane', 'magenta'),  # 'aeroplane' (PASCAL)
    6: ('bus', 'orange'),
    7: ('train', 'pink'),
    8: ('truck', 'brown'),
@@ -110,12 +110,12 @@ CATEGORIES = {
   55: ('donut', 'blue'),
   56: ('cake', 'red'),
   57: ('chair', 'green'),
-  58: ('couch', 'yellow'),
-  59: ('potted plant', 'cyan'),
+  58: ('couch', 'yellow'),      # 'sofa' (PASCAL)
+  59: ('potted plant', 'cyan'), # 'pottedplant' (PASCAL)
   60: ('bed', 'magenta'),
-  61: ('dining table', 'pink'),
+  61: ('dining table', 'pink'), # 'diningtable' (PASCAL)
   62: ('toilet', 'gray'),
-  63: ('tv', 'blue'),
+  63: ('tv', 'blue'),           # 'tvmonitor' (PASCAL)
   64: ('laptop', 'red'),
   65: ('mouse', 'green'),
   66: ('remote', 'yellow'),

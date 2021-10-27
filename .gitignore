@@ -7,4 +7,5 @@
 *.pem
 tmp
 COCO
+PASCAL
 __pycache__
